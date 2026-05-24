@@ -1,11 +1,10 @@
--- glitched.exe | WindUI Edition
+-- glitched.exe | Rayfield Edition
 
-local WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/main/source.lua"))()
+local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
-local TweenService = game:GetService("TweenService")
 
 local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
@@ -15,23 +14,23 @@ local Camera = workspace.CurrentCamera
 -- =====================
 
 local State = {
-    Walkspeed = 16,
-    JumpPower = 50,
-    LoopWS = false,
-    LoopJP = false,
-    Fly = false,
-    Noclip = false,
-    Aimbot = false,
-    AntiAFK = false,
-    InfJump = false,
-    ESPEnabled = false,
-    TracersEnabled = false,
-    AimbotFOV = 150,
+    Walkspeed      = 16,
+    JumpPower      = 50,
+    FlySpeed       = 50,
+    AimbotFOV      = 150,
     AimbotSmoothing = 0.1,
-    FlySpeed = 50,
+    LoopWS         = false,
+    LoopJP         = false,
+    Fly            = false,
+    Noclip         = false,
+    Aimbot         = false,
+    AntiAFK        = false,
+    InfJump        = false,
+    ESPEnabled     = false,
+    TracersEnabled = false,
 }
 
-local ESPObjects = {}
+local ESPObjects    = {}
 local FlyBodyVelocity, FlyBodyGyro
 local InfJumpConn, AntiAFKConn, LoopWSConn, LoopJPConn
 
@@ -50,49 +49,66 @@ local function GetRootPart()
 end
 
 -- =====================
--- WindUI Window
+-- Rayfield Window
 -- =====================
 
-local Window = WindUI:CreateWindow({
-    Title = "glitched.exe",
-    Icon = "zap",
-    Author = "glitched",
-    Folder = "glitched_exe",
-    Size = UDim2.fromOffset(580, 460),
-    Transparent = true,
-    Theme = "Dark",
+local Window = Rayfield:CreateWindow({
+    Name                 = "glitched.exe",
+    Icon                 = 0,
+    LoadingTitle         = "glitched.exe",
+    LoadingSubtitle      = "by glitched",
+    Theme                = "Default",
+    DisableRayfieldPrompt = false,
+    DisableBuildWarnings  = false,
+    ConfigurationSaving  = {
+        Enabled = true,
+        FolderName = "glitched_exe",
+        FileName = "config",
+    },
+    Discord = {
+        Enabled = false,
+    },
+    KeySystem = false,
 })
 
-local Tabs = {
-    Movement = Window:Tab({ Title = "Movement", Icon = "footprints" }),
-    Combat   = Window:Tab({ Title = "Combat",   Icon = "crosshair"  }),
-    Visuals  = Window:Tab({ Title = "Visuals",  Icon = "eye"        }),
-    Players  = Window:Tab({ Title = "Players",  Icon = "users"      }),
-    Settings = Window:Tab({ Title = "Settings", Icon = "settings"   }),
-}
+-- =====================
+-- TABS
+-- =====================
+
+local MovementTab = Window:CreateTab("Movement", "footprints")
+local CombatTab   = Window:CreateTab("Combat",   "crosshair")
+local VisualsTab  = Window:CreateTab("Visuals",  "eye")
+local PlayersTab  = Window:CreateTab("Players",  "users")
+local SettingsTab = Window:CreateTab("Settings", "settings")
 
 -- =====================
 -- MOVEMENT TAB
 -- =====================
 
-local MoveSec = Tabs.Movement:Section({ Title = "Speed & Jump" })
+MovementTab:CreateSection("Speed & Jump")
 
-MoveSec:Slider({
-    Title = "Walk Speed",
-    Description = "Set player walk speed",
-    Default = 16, Min = 0, Max = 500, Decimals = 0,
-    Callback = function(v)
+MovementTab:CreateSlider({
+    Name        = "Walk Speed",
+    Range       = {0, 500},
+    Increment   = 1,
+    Suffix      = "WS",
+    CurrentValue = 16,
+    Flag        = "WalkspeedSlider",
+    Callback    = function(v)
         State.Walkspeed = v
         local h = GetHumanoid()
         if h then h.WalkSpeed = v end
     end,
 })
 
-MoveSec:Slider({
-    Title = "Jump Power",
-    Description = "Set player jump height",
-    Default = 50, Min = 0, Max = 500, Decimals = 0,
-    Callback = function(v)
+MovementTab:CreateSlider({
+    Name        = "Jump Power",
+    Range       = {0, 500},
+    Increment   = 1,
+    Suffix      = "JP",
+    CurrentValue = 50,
+    Flag        = "JumpPowerSlider",
+    Callback    = function(v)
         State.JumpPower = v
         local h = GetHumanoid()
         if h then
@@ -101,13 +117,13 @@ MoveSec:Slider({
     end,
 })
 
-MoveSec:Toggle({
-    Title = "Loop Walk Speed",
-    Description = "Continuously reapply walk speed",
-    Default = false,
-    Callback = function(v)
+MovementTab:CreateToggle({
+    Name         = "Loop Walk Speed",
+    CurrentValue = false,
+    Flag         = "LoopWS",
+    Callback     = function(v)
         State.LoopWS = v
-        if LoopWSConn then LoopWSConn:Disconnect() end
+        if LoopWSConn then LoopWSConn:Disconnect() LoopWSConn = nil end
         if v then
             LoopWSConn = RunService.Heartbeat:Connect(function()
                 local h = GetHumanoid()
@@ -117,34 +133,34 @@ MoveSec:Toggle({
     end,
 })
 
-MoveSec:Toggle({
-    Title = "Loop Jump Power",
-    Description = "Continuously reapply jump power",
-    Default = false,
-    Callback = function(v)
+MovementTab:CreateToggle({
+    Name         = "Loop Jump Power",
+    CurrentValue = false,
+    Flag         = "LoopJP",
+    Callback     = function(v)
         State.LoopJP = v
-        if LoopJPConn then LoopJPConn:Disconnect() end
+        if LoopJPConn then LoopJPConn:Disconnect() LoopJPConn = nil end
         if v then
             LoopJPConn = RunService.Heartbeat:Connect(function()
                 local h = GetHumanoid()
                 if h then
-                    if h.UseJumpPower then h.JumpPower = State.JumpPower else h.JumpHeight = State.JumpPower end
+                    if h.UseJumpPower then h.JumpPower = State.JumpPower
+                    else h.JumpHeight = State.JumpPower end
                 end
             end)
         end
     end,
 })
 
--- Inf Jump
-local JumpSec = Tabs.Movement:Section({ Title = "Inf Jump" })
+MovementTab:CreateSection("Infinite Jump")
 
-JumpSec:Toggle({
-    Title = "Infinite Jump",
-    Description = "Jump infinitely in the air",
-    Default = false,
-    Callback = function(v)
+MovementTab:CreateToggle({
+    Name         = "Infinite Jump",
+    CurrentValue = false,
+    Flag         = "InfJump",
+    Callback     = function(v)
         State.InfJump = v
-        if InfJumpConn then InfJumpConn:Disconnect() end
+        if InfJumpConn then InfJumpConn:Disconnect() InfJumpConn = nil end
         if v then
             InfJumpConn = UserInputService.JumpRequest:Connect(function()
                 local h = GetHumanoid()
@@ -154,67 +170,69 @@ JumpSec:Toggle({
     end,
 })
 
--- Fly
-local FlySec = Tabs.Movement:Section({ Title = "Fly" })
+MovementTab:CreateSection("Fly")
 
-FlySec:Slider({
-    Title = "Fly Speed",
-    Default = 50, Min = 10, Max = 300, Decimals = 0,
-    Callback = function(v) State.FlySpeed = v end,
+MovementTab:CreateSlider({
+    Name         = "Fly Speed",
+    Range        = {10, 300},
+    Increment    = 1,
+    Suffix       = "SPD",
+    CurrentValue = 50,
+    Flag         = "FlySpeed",
+    Callback     = function(v) State.FlySpeed = v end,
 })
 
 local function EnableFly()
     local root = GetRootPart()
     if not root then return end
     FlyBodyVelocity = Instance.new("BodyVelocity")
-    FlyBodyVelocity.Velocity = Vector3.zero
-    FlyBodyVelocity.MaxForce = Vector3.new(1e5, 1e5, 1e5)
-    FlyBodyVelocity.Parent = root
+    FlyBodyVelocity.Velocity  = Vector3.zero
+    FlyBodyVelocity.MaxForce  = Vector3.new(1e5, 1e5, 1e5)
+    FlyBodyVelocity.Parent    = root
     FlyBodyGyro = Instance.new("BodyGyro")
     FlyBodyGyro.MaxTorque = Vector3.new(1e5, 1e5, 1e5)
-    FlyBodyGyro.P = 1e4
-    FlyBodyGyro.Parent = root
+    FlyBodyGyro.P         = 1e4
+    FlyBodyGyro.Parent    = root
     RunService:BindToRenderStep("FlyStep", Enum.RenderPriority.Input.Value, function()
         if not State.Fly then return end
         local r = GetRootPart()
         if not r then return end
-        local cf = Camera.CFrame
+        local cf  = Camera.CFrame
         local dir = Vector3.zero
         if UserInputService:IsKeyDown(Enum.KeyCode.W) then dir += cf.LookVector end
         if UserInputService:IsKeyDown(Enum.KeyCode.S) then dir -= cf.LookVector end
         if UserInputService:IsKeyDown(Enum.KeyCode.A) then dir -= cf.RightVector end
         if UserInputService:IsKeyDown(Enum.KeyCode.D) then dir += cf.RightVector end
-        if UserInputService:IsKeyDown(Enum.KeyCode.Space) then dir += Vector3.new(0,1,0) end
+        if UserInputService:IsKeyDown(Enum.KeyCode.Space)       then dir += Vector3.new(0,1,0) end
         if UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) then dir -= Vector3.new(0,1,0) end
         FlyBodyVelocity.Velocity = dir.Magnitude > 0 and dir.Unit * State.FlySpeed or Vector3.zero
-        FlyBodyGyro.CFrame = cf
+        FlyBodyGyro.CFrame       = cf
     end)
 end
 
 local function DisableFly()
     RunService:UnbindFromRenderStep("FlyStep")
     if FlyBodyVelocity then FlyBodyVelocity:Destroy() FlyBodyVelocity = nil end
-    if FlyBodyGyro then FlyBodyGyro:Destroy() FlyBodyGyro = nil end
+    if FlyBodyGyro     then FlyBodyGyro:Destroy()     FlyBodyGyro     = nil end
 end
 
-FlySec:Toggle({
-    Title = "Enable Fly",
-    Description = "WASD to move, Space/Ctrl for up/down",
-    Default = false,
-    Callback = function(v)
+MovementTab:CreateToggle({
+    Name         = "Enable Fly",
+    CurrentValue = false,
+    Flag         = "FlyToggle",
+    Callback     = function(v)
         State.Fly = v
         if v then EnableFly() else DisableFly() end
     end,
 })
 
--- Noclip
-local NoclipSec = Tabs.Movement:Section({ Title = "Noclip" })
+MovementTab:CreateSection("Noclip")
 
-NoclipSec:Toggle({
-    Title = "Enable Noclip",
-    Description = "Disable collision with all parts",
-    Default = false,
-    Callback = function(v) State.Noclip = v end,
+MovementTab:CreateToggle({
+    Name         = "Enable Noclip",
+    CurrentValue = false,
+    Flag         = "NoclipToggle",
+    Callback     = function(v) State.Noclip = v end,
 })
 
 RunService.Stepped:Connect(function()
@@ -230,22 +248,20 @@ RunService.Stepped:Connect(function()
     end
 end)
 
--- Anti-AFK
-local MiscSec = Tabs.Movement:Section({ Title = "Misc" })
+MovementTab:CreateSection("Misc")
 
-MiscSec:Toggle({
-    Title = "Anti-AFK",
-    Description = "Prevent auto-kick for being idle",
-    Default = false,
-    Callback = function(v)
+MovementTab:CreateToggle({
+    Name         = "Anti-AFK",
+    CurrentValue = false,
+    Flag         = "AntiAFK",
+    Callback     = function(v)
         State.AntiAFK = v
-        if AntiAFKConn then AntiAFKConn:Disconnect() end
+        if AntiAFKConn then AntiAFKConn:Disconnect() AntiAFKConn = nil end
         if v then
             AntiAFKConn = LocalPlayer.Idled:Connect(function()
-                -- Fire a fake VirtualUser input to reset idle timer
-                local VirtualUser = game:GetService("VirtualUser")
-                VirtualUser:CaptureController()
-                VirtualUser:ClickButton2(Vector2.new())
+                local VU = game:GetService("VirtualUser")
+                VU:CaptureController()
+                VU:ClickButton2(Vector2.new())
             end)
         end
     end,
@@ -256,37 +272,45 @@ LocalPlayer.CharacterAdded:Connect(function(char)
     local hum = char:WaitForChild("Humanoid")
     task.wait(0.1)
     hum.WalkSpeed = State.Walkspeed
-    if hum.UseJumpPower then hum.JumpPower = State.JumpPower else hum.JumpHeight = State.JumpPower end
+    if hum.UseJumpPower then hum.JumpPower = State.JumpPower
+    else hum.JumpHeight = State.JumpPower end
 end)
 
 -- =====================
 -- COMBAT TAB
 -- =====================
 
-local AimbotSec = Tabs.Combat:Section({ Title = "Aimbot" })
+CombatTab:CreateSection("Aimbot")
 
-AimbotSec:Toggle({
-    Title = "Enable Aimbot",
-    Description = "Hold RMB to lock onto nearest player",
-    Default = false,
-    Callback = function(v) State.Aimbot = v end,
+CombatTab:CreateToggle({
+    Name         = "Enable Aimbot",
+    CurrentValue = false,
+    Flag         = "AimbotToggle",
+    Callback     = function(v) State.Aimbot = v end,
 })
 
-AimbotSec:Slider({
-    Title = "FOV Radius",
-    Default = 150, Min = 10, Max = 700, Decimals = 0,
-    Callback = function(v) State.AimbotFOV = v end,
+CombatTab:CreateSlider({
+    Name         = "FOV Radius",
+    Range        = {10, 700},
+    Increment    = 1,
+    Suffix       = "px",
+    CurrentValue = 150,
+    Flag         = "AimbotFOV",
+    Callback     = function(v) State.AimbotFOV = v end,
 })
 
-AimbotSec:Slider({
-    Title = "Smoothing",
-    Description = "Higher = slower lock",
-    Default = 10, Min = 1, Max = 100, Decimals = 0,
-    Callback = function(v) State.AimbotSmoothing = v / 1000 end,
+CombatTab:CreateSlider({
+    Name         = "Smoothing",
+    Range        = {1, 100},
+    Increment    = 1,
+    Suffix       = "",
+    CurrentValue = 10,
+    Flag         = "AimbotSmooth",
+    Callback     = function(v) State.AimbotSmoothing = v / 1000 end,
 })
 
 local function GetClosestToCenter()
-    local closest, dist = nil, math.huge
+    local closest, bestDist = nil, math.huge
     local center = Camera.ViewportSize / 2
     for _, p in pairs(Players:GetPlayers()) do
         if p == LocalPlayer then continue end
@@ -297,9 +321,9 @@ local function GetClosestToCenter()
         local sp, vis = Camera:WorldToViewportPoint(root.Position)
         if not vis then continue end
         local d = (Vector2.new(sp.X, sp.Y) - center).Magnitude
-        if d < dist and d <= State.AimbotFOV then
-            dist = d
-            closest = p
+        if d < bestDist and d <= State.AimbotFOV then
+            bestDist = d
+            closest  = p
         end
     end
     return closest
@@ -312,36 +336,39 @@ RunService.RenderStepped:Connect(function()
     if not target then return end
     local head = target.Character and target.Character:FindFirstChild("Head")
     if not head then return end
-    Camera.CFrame = Camera.CFrame:Lerp(CFrame.new(Camera.CFrame.Position, head.Position), State.AimbotSmoothing)
+    Camera.CFrame = Camera.CFrame:Lerp(
+        CFrame.new(Camera.CFrame.Position, head.Position),
+        State.AimbotSmoothing
+    )
 end)
 
 -- =====================
 -- VISUALS TAB
 -- =====================
 
-local ESPSec = Tabs.Visuals:Section({ Title = "ESP" })
-
-local ESP_COLOR = Color3.fromRGB(255, 60, 60)
+local ESP_COLOR    = Color3.fromRGB(255, 60, 60)
 local TRACER_COLOR = Color3.fromRGB(255, 220, 0)
+
+VisualsTab:CreateSection("ESP")
 
 local function CreateESP(player)
     if player == LocalPlayer or ESPObjects[player] then return end
     local bb = Instance.new("BillboardGui")
     bb.AlwaysOnTop = true
-    bb.Size = UDim2.new(0, 120, 0, 36)
+    bb.Size        = UDim2.new(0, 130, 0, 36)
     bb.StudsOffset = Vector3.new(0, 3.5, 0)
     local lbl = Instance.new("TextLabel", bb)
     lbl.BackgroundTransparency = 1
-    lbl.Size = UDim2.new(1, 0, 1, 0)
-    lbl.TextColor3 = ESP_COLOR
+    lbl.Size                   = UDim2.new(1, 0, 1, 0)
+    lbl.TextColor3             = ESP_COLOR
     lbl.TextStrokeTransparency = 0
-    lbl.Font = Enum.Font.GothamBold
-    lbl.TextSize = 13
-    lbl.Text = player.Name
+    lbl.Font                   = Enum.Font.GothamBold
+    lbl.TextSize               = 13
+    lbl.Text                   = player.Name
     local tracer = Drawing.new("Line")
-    tracer.Visible = false
-    tracer.Color = TRACER_COLOR
-    tracer.Thickness = 1
+    tracer.Visible     = false
+    tracer.Color       = TRACER_COLOR
+    tracer.Thickness   = 1
     tracer.Transparency = 1
     ESPObjects[player] = { BB = bb, Tracer = tracer, Label = lbl }
     local function attach()
@@ -349,7 +376,7 @@ local function CreateESP(player)
         local root = char:WaitForChild("HumanoidRootPart", 5)
         if root and ESPObjects[player] then
             bb.Adornee = root
-            bb.Parent = game:GetService("CoreGui")
+            bb.Parent  = game:GetService("CoreGui")
         end
     end
     task.spawn(attach)
@@ -358,17 +385,17 @@ end
 
 local function RemoveESP(player)
     if ESPObjects[player] then
-        if ESPObjects[player].BB then ESPObjects[player].BB:Destroy() end
-        if ESPObjects[player].Tracer then ESPObjects[player].Tracer:Remove() end
+        if ESPObjects[player].BB     then ESPObjects[player].BB:Destroy()     end
+        if ESPObjects[player].Tracer then ESPObjects[player].Tracer:Remove()  end
         ESPObjects[player] = nil
     end
 end
 
-ESPSec:Toggle({
-    Title = "Enable ESP",
-    Description = "Show player names and health",
-    Default = false,
-    Callback = function(v)
+VisualsTab:CreateToggle({
+    Name         = "Enable ESP",
+    CurrentValue = false,
+    Flag         = "ESPToggle",
+    Callback     = function(v)
         State.ESPEnabled = v
         if v then
             for _, p in pairs(Players:GetPlayers()) do CreateESP(p) end
@@ -378,11 +405,11 @@ ESPSec:Toggle({
     end,
 })
 
-ESPSec:Toggle({
-    Title = "Enable Tracers",
-    Description = "Draw lines from screen bottom to players",
-    Default = false,
-    Callback = function(v) State.TracersEnabled = v end,
+VisualsTab:CreateToggle({
+    Name         = "Enable Tracers",
+    CurrentValue = false,
+    Flag         = "TracerToggle",
+    Callback     = function(v) State.TracersEnabled = v end,
 })
 
 RunService.RenderStepped:Connect(function()
@@ -407,8 +434,8 @@ RunService.RenderStepped:Connect(function()
                 end
             end
         else
-            if objs.BB then objs.BB.Enabled = false end
-            if objs.Tracer then objs.Tracer.Visible = false end
+            if objs.BB     then objs.BB.Enabled     = false end
+            if objs.Tracer then objs.Tracer.Visible  = false end
         end
     end
 end)
@@ -419,10 +446,10 @@ end)
 Players.PlayerRemoving:Connect(function(p) RemoveESP(p) end)
 
 -- =====================
--- PLAYERS TAB (Teleport)
+-- PLAYERS TAB
 -- =====================
 
-local TpSec = Tabs.Players:Section({ Title = "Teleport to Player" })
+PlayersTab:CreateSection("Teleport to Player")
 
 local function GetPlayerNames()
     local names = {}
@@ -431,75 +458,103 @@ local function GetPlayerNames()
             table.insert(names, p.Name)
         end
     end
-    if #names == 0 then names = { "No players found" } end
+    if #names == 0 then return { "No players found" } end
     return names
 end
 
-local PlayerDropdown
+local SelectedPlayer = nil
 
-PlayerDropdown = TpSec:Dropdown({
-    Title = "Select Player",
-    Description = "Choose a player to teleport to",
-    Values = GetPlayerNames(),
-    Default = 1,
-    Callback = function(_) end, -- selection stored internally
+local PlayerDropdown = PlayersTab:CreateDropdown({
+    Name    = "Select Player",
+    Options = GetPlayerNames(),
+    CurrentOption = { GetPlayerNames()[1] },
+    Flag    = "TeleportDropdown",
+    Callback = function(v)
+        SelectedPlayer = v[1] ~= "No players found" and v[1] or nil
+    end,
 })
 
-TpSec:Button({
-    Title = "Teleport",
-    Description = "Teleport to selected player",
+PlayersTab:CreateButton({
+    Name     = "Teleport",
     Callback = function()
-        local selected = PlayerDropdown:GetValue()
-        if not selected or selected == "No players found" then return end
-        local target = Players:FindFirstChild(selected)
+        if not SelectedPlayer then
+            Rayfield:Notify({
+                Title    = "glitched.exe",
+                Content  = "No player selected.",
+                Duration = 3,
+                Image    = 4483362458,
+            })
+            return
+        end
+        local target = Players:FindFirstChild(SelectedPlayer)
         if not target then return end
-        local tChar = target.Character
-        local tRoot = tChar and tChar:FindFirstChild("HumanoidRootPart")
+        local tRoot  = target.Character and target.Character:FindFirstChild("HumanoidRootPart")
         local myRoot = GetRootPart()
         if tRoot and myRoot then
             myRoot.CFrame = tRoot.CFrame + Vector3.new(0, 3, 0)
+            Rayfield:Notify({
+                Title    = "glitched.exe",
+                Content  = "Teleported to " .. SelectedPlayer,
+                Duration = 2,
+                Image    = 4483362458,
+            })
         end
     end,
 })
 
-TpSec:Button({
-    Title = "↻ Refresh Player List",
-    Description = "Update the list after players join or leave",
+PlayersTab:CreateButton({
+    Name     = "↻ Refresh Player List",
     Callback = function()
-        PlayerDropdown:SetValues(GetPlayerNames())
+        local names = GetPlayerNames()
+        PlayerDropdown:Set(names[1])
+        Rayfield:Notify({
+            Title    = "glitched.exe",
+            Content  = "Player list refreshed.",
+            Duration = 2,
+            Image    = 4483362458,
+        })
     end,
 })
 
--- Auto-refresh on player join/leave
 Players.PlayerAdded:Connect(function()
-    PlayerDropdown:SetValues(GetPlayerNames())
+    local names = GetPlayerNames()
+    PlayerDropdown:Set(names[1])
 end)
+
 Players.PlayerRemoving:Connect(function()
     task.wait(0.1)
-    PlayerDropdown:SetValues(GetPlayerNames())
+    local names = GetPlayerNames()
+    PlayerDropdown:Set(names[1])
+    SelectedPlayer = nil
 end)
 
 -- =====================
 -- SETTINGS TAB
 -- =====================
 
-local ThemeSec = Tabs.Settings:Section({ Title = "Theme" })
+SettingsTab:CreateSection("UI Settings")
 
-ThemeSec:Dropdown({
-    Title = "UI Theme",
-    Values = { "Dark", "Light", "Darker" },
-    Default = 1,
-    Callback = function(v)
-        Window:SetTheme(v)
+SettingsTab:CreateDropdown({
+    Name          = "Theme",
+    Options       = { "Default", "ocean", "Amethyst", "Green", "Light" },
+    CurrentOption = { "Default" },
+    Flag          = "ThemeDropdown",
+    Callback      = function(v)
+        Rayfield:SetTheme(v[1])
     end,
 })
 
-Tabs.Settings:Section({ Title = "Info" }):Label({
-    Title = "glitched.exe — WindUI Edition",
-})
+SettingsTab:CreateSection("Config")
 
-WindUI:Notify({
-    Title = "glitched.exe",
-    Content = "Script loaded successfully!",
+Rayfield:LoadConfiguration()
+
+-- =====================
+-- Ready
+-- =====================
+
+Rayfield:Notify({
+    Title    = "glitched.exe",
+    Content  = "WE'RE IN, BITCHES!",
     Duration = 4,
+    Image    = 4483362458,
 })

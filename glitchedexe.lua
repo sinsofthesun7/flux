@@ -14,23 +14,23 @@ local Camera = workspace.CurrentCamera
 -- =====================
 
 local State = {
-    Walkspeed      = 16,
-    JumpPower      = 50,
-    FlySpeed       = 50,
-    AimbotFOV      = 150,
+    Walkspeed       = 16,
+    JumpPower       = 50,
+    FlySpeed        = 50,
+    AimbotFOV       = 150,
     AimbotSmoothing = 0.1,
-    LoopWS         = false,
-    LoopJP         = false,
-    Fly            = false,
-    Noclip         = false,
-    Aimbot         = false,
-    AntiAFK        = false,
-    InfJump        = false,
-    ESPEnabled     = false,
-    TracersEnabled = false,
+    LoopWS          = false,
+    LoopJP          = false,
+    Fly             = false,
+    Noclip          = false,
+    Aimbot          = false,
+    AntiAFK         = false,
+    InfJump         = false,
+    ESPEnabled      = false,
+    TracersEnabled  = false,
 }
 
-local ESPObjects    = {}
+local ESPObjects = {}
 local FlyBodyVelocity, FlyBodyGyro
 local InfJumpConn, AntiAFKConn, LoopWSConn, LoopJPConn
 
@@ -48,27 +48,39 @@ local function GetRootPart()
     return c and c:FindFirstChild("HumanoidRootPart")
 end
 
+local function SafeExec(url, label)
+    local ok, err = pcall(function()
+        loadstring(game:HttpGet(url))()
+    end)
+    if not ok then
+        Rayfield:Notify({
+            Title   = "glitched.exe",
+            Content = label .. " failed to load: " .. tostring(err),
+            Duration = 5,
+            Image   = 4483362458,
+        })
+    end
+end
+
 -- =====================
 -- Rayfield Window
 -- =====================
 
 local Window = Rayfield:CreateWindow({
-    Name                 = "glitched.exe",
-    Icon                 = 0,
-    LoadingTitle         = "glitched.exe",
-    LoadingSubtitle      = "by glitched",
-    Theme                = "Default",
+    Name                  = "glitched.exe",
+    Icon                  = 0,
+    LoadingTitle          = "glitched.exe",
+    LoadingSubtitle       = "by glitched",
+    Theme                 = "Default",
     DisableRayfieldPrompt = false,
     DisableBuildWarnings  = false,
-    ConfigurationSaving  = {
-        Enabled = true,
+    ConfigurationSaving   = {
+        Enabled    = true,
         FolderName = "glitched_exe",
-        FileName = "config",
+        FileName   = "config",
     },
-    Discord = {
-        Enabled = false,
-    },
-    KeySystem = false,
+    Discord    = { Enabled = false },
+    KeySystem  = false,
 })
 
 -- =====================
@@ -79,6 +91,7 @@ local MovementTab = Window:CreateTab("Movement", "footprints")
 local CombatTab   = Window:CreateTab("Combat",   "crosshair")
 local VisualsTab  = Window:CreateTab("Visuals",  "eye")
 local PlayersTab  = Window:CreateTab("Players",  "users")
+local HubsTab     = Window:CreateTab("Hubs",     "layout-grid")
 local SettingsTab = Window:CreateTab("Settings", "settings")
 
 -- =====================
@@ -88,13 +101,13 @@ local SettingsTab = Window:CreateTab("Settings", "settings")
 MovementTab:CreateSection("Speed & Jump")
 
 MovementTab:CreateSlider({
-    Name        = "Walk Speed",
-    Range       = {0, 500},
-    Increment   = 1,
-    Suffix      = "WS",
+    Name         = "Walk Speed",
+    Range        = {0, 500},
+    Increment    = 1,
+    Suffix       = "WS",
     CurrentValue = 16,
-    Flag        = "WalkspeedSlider",
-    Callback    = function(v)
+    Flag         = "WalkspeedSlider",
+    Callback     = function(v)
         State.Walkspeed = v
         local h = GetHumanoid()
         if h then h.WalkSpeed = v end
@@ -102,13 +115,13 @@ MovementTab:CreateSlider({
 })
 
 MovementTab:CreateSlider({
-    Name        = "Jump Power",
-    Range       = {0, 500},
-    Increment   = 1,
-    Suffix      = "JP",
+    Name         = "Jump Power",
+    Range        = {0, 500},
+    Increment    = 1,
+    Suffix       = "JP",
     CurrentValue = 50,
-    Flag        = "JumpPowerSlider",
-    Callback    = function(v)
+    Flag         = "JumpPowerSlider",
+    Callback     = function(v)
         State.JumpPower = v
         local h = GetHumanoid()
         if h then
@@ -185,14 +198,14 @@ MovementTab:CreateSlider({
 local function EnableFly()
     local root = GetRootPart()
     if not root then return end
-    FlyBodyVelocity = Instance.new("BodyVelocity")
-    FlyBodyVelocity.Velocity  = Vector3.zero
-    FlyBodyVelocity.MaxForce  = Vector3.new(1e5, 1e5, 1e5)
-    FlyBodyVelocity.Parent    = root
-    FlyBodyGyro = Instance.new("BodyGyro")
-    FlyBodyGyro.MaxTorque = Vector3.new(1e5, 1e5, 1e5)
-    FlyBodyGyro.P         = 1e4
-    FlyBodyGyro.Parent    = root
+    FlyBodyVelocity            = Instance.new("BodyVelocity")
+    FlyBodyVelocity.Velocity   = Vector3.zero
+    FlyBodyVelocity.MaxForce   = Vector3.new(1e5, 1e5, 1e5)
+    FlyBodyVelocity.Parent     = root
+    FlyBodyGyro                = Instance.new("BodyGyro")
+    FlyBodyGyro.MaxTorque      = Vector3.new(1e5, 1e5, 1e5)
+    FlyBodyGyro.P              = 1e4
+    FlyBodyGyro.Parent         = root
     RunService:BindToRenderStep("FlyStep", Enum.RenderPriority.Input.Value, function()
         if not State.Fly then return end
         local r = GetRootPart()
@@ -267,7 +280,6 @@ MovementTab:CreateToggle({
     end,
 })
 
--- Reapply on respawn
 LocalPlayer.CharacterAdded:Connect(function(char)
     local hum = char:WaitForChild("Humanoid")
     task.wait(0.1)
@@ -353,24 +365,24 @@ VisualsTab:CreateSection("ESP")
 
 local function CreateESP(player)
     if player == LocalPlayer or ESPObjects[player] then return end
-    local bb = Instance.new("BillboardGui")
+    local bb       = Instance.new("BillboardGui")
     bb.AlwaysOnTop = true
     bb.Size        = UDim2.new(0, 130, 0, 36)
     bb.StudsOffset = Vector3.new(0, 3.5, 0)
-    local lbl = Instance.new("TextLabel", bb)
-    lbl.BackgroundTransparency = 1
-    lbl.Size                   = UDim2.new(1, 0, 1, 0)
-    lbl.TextColor3             = ESP_COLOR
-    lbl.TextStrokeTransparency = 0
-    lbl.Font                   = Enum.Font.GothamBold
-    lbl.TextSize               = 13
-    lbl.Text                   = player.Name
-    local tracer = Drawing.new("Line")
-    tracer.Visible     = false
-    tracer.Color       = TRACER_COLOR
-    tracer.Thickness   = 1
+    local lbl                   = Instance.new("TextLabel", bb)
+    lbl.BackgroundTransparency  = 1
+    lbl.Size                    = UDim2.new(1, 0, 1, 0)
+    lbl.TextColor3              = ESP_COLOR
+    lbl.TextStrokeTransparency  = 0
+    lbl.Font                    = Enum.Font.GothamBold
+    lbl.TextSize                = 13
+    lbl.Text                    = player.Name
+    local tracer        = Drawing.new("Line")
+    tracer.Visible      = false
+    tracer.Color        = TRACER_COLOR
+    tracer.Thickness    = 1
     tracer.Transparency = 1
-    ESPObjects[player] = { BB = bb, Tracer = tracer, Label = lbl }
+    ESPObjects[player]  = { BB = bb, Tracer = tracer, Label = lbl }
     local function attach()
         local char = player.Character or player.CharacterAdded:Wait()
         local root = char:WaitForChild("HumanoidRootPart", 5)
@@ -385,8 +397,8 @@ end
 
 local function RemoveESP(player)
     if ESPObjects[player] then
-        if ESPObjects[player].BB     then ESPObjects[player].BB:Destroy()     end
-        if ESPObjects[player].Tracer then ESPObjects[player].Tracer:Remove()  end
+        if ESPObjects[player].BB     then ESPObjects[player].BB:Destroy()    end
+        if ESPObjects[player].Tracer then ESPObjects[player].Tracer:Remove() end
         ESPObjects[player] = nil
     end
 end
@@ -434,8 +446,8 @@ RunService.RenderStepped:Connect(function()
                 end
             end
         else
-            if objs.BB     then objs.BB.Enabled     = false end
-            if objs.Tracer then objs.Tracer.Visible  = false end
+            if objs.BB     then objs.BB.Enabled    = false end
+            if objs.Tracer then objs.Tracer.Visible = false end
         end
     end
 end)
@@ -454,9 +466,7 @@ PlayersTab:CreateSection("Teleport to Player")
 local function GetPlayerNames()
     local names = {}
     for _, p in pairs(Players:GetPlayers()) do
-        if p ~= LocalPlayer then
-            table.insert(names, p.Name)
-        end
+        if p ~= LocalPlayer then table.insert(names, p.Name) end
     end
     if #names == 0 then return { "No players found" } end
     return names
@@ -465,11 +475,11 @@ end
 local SelectedPlayer = nil
 
 local PlayerDropdown = PlayersTab:CreateDropdown({
-    Name    = "Select Player",
-    Options = GetPlayerNames(),
+    Name          = "Select Player",
+    Options       = GetPlayerNames(),
     CurrentOption = { GetPlayerNames()[1] },
-    Flag    = "TeleportDropdown",
-    Callback = function(v)
+    Flag          = "TeleportDropdown",
+    Callback      = function(v)
         SelectedPlayer = v[1] ~= "No players found" and v[1] or nil
     end,
 })
@@ -478,12 +488,7 @@ PlayersTab:CreateButton({
     Name     = "Teleport",
     Callback = function()
         if not SelectedPlayer then
-            Rayfield:Notify({
-                Title    = "glitched.exe",
-                Content  = "No player selected.",
-                Duration = 3,
-                Image    = 4483362458,
-            })
+            Rayfield:Notify({ Title = "glitched.exe", Content = "No player selected.", Duration = 3, Image = 4483362458 })
             return
         end
         local target = Players:FindFirstChild(SelectedPlayer)
@@ -492,12 +497,7 @@ PlayersTab:CreateButton({
         local myRoot = GetRootPart()
         if tRoot and myRoot then
             myRoot.CFrame = tRoot.CFrame + Vector3.new(0, 3, 0)
-            Rayfield:Notify({
-                Title    = "glitched.exe",
-                Content  = "Teleported to " .. SelectedPlayer,
-                Duration = 2,
-                Image    = 4483362458,
-            })
+            Rayfield:Notify({ Title = "glitched.exe", Content = "Teleported to " .. SelectedPlayer, Duration = 2, Image = 4483362458 })
         end
     end,
 })
@@ -507,12 +507,8 @@ PlayersTab:CreateButton({
     Callback = function()
         local names = GetPlayerNames()
         PlayerDropdown:Set(names[1])
-        Rayfield:Notify({
-            Title    = "glitched.exe",
-            Content  = "Player list refreshed.",
-            Duration = 2,
-            Image    = 4483362458,
-        })
+        SelectedPlayer = nil
+        Rayfield:Notify({ Title = "glitched.exe", Content = "Player list refreshed.", Duration = 2, Image = 4483362458 })
     end,
 })
 
@@ -520,13 +516,58 @@ Players.PlayerAdded:Connect(function()
     local names = GetPlayerNames()
     PlayerDropdown:Set(names[1])
 end)
-
 Players.PlayerRemoving:Connect(function()
     task.wait(0.1)
     local names = GetPlayerNames()
     PlayerDropdown:Set(names[1])
     SelectedPlayer = nil
 end)
+
+-- =====================
+-- HUBS TAB
+-- =====================
+
+HubsTab:CreateSection("Admin & Commands")
+
+HubsTab:CreateButton({
+    Name        = "Infinite Yield",
+    Description = "Feature-rich admin command hub",
+    Callback    = function()
+        Rayfield:Notify({ Title = "glitched.exe", Content = "Loading Infinite Yield...", Duration = 3, Image = 4483362458 })
+        SafeExec("https://raw.githubusercontent.com/DarkNetworks/Infinite-Yield/main/latest.lua", "Infinite Yield")
+    end,
+})
+
+HubsTab:CreateSection("Utility")
+
+HubsTab:CreateButton({
+    Name        = "Dex Explorer",
+    Description = "Explore and edit the game's DataModel",
+    Callback    = function()
+        Rayfield:Notify({ Title = "glitched.exe", Content = "Loading Dex Explorer...", Duration = 3, Image = 4483362458 })
+        SafeExec("https://raw.githubusercontent.com/infyiff/backup/main/dex.lua", "Dex Explorer")
+    end,
+})
+
+HubsTab:CreateButton({
+    Name        = "Remote Spy",
+    Description = "Monitor all RemoteEvent and RemoteFunction calls",
+    Callback    = function()
+        Rayfield:Notify({ Title = "glitched.exe", Content = "Loading Remote Spy...", Duration = 3, Image = 4483362458 })
+        SafeExec("https://raw.githubusercontent.com/exxtremestuffs/SimpleSpySource/master/SimpleSpy.lua", "Remote Spy")
+    end,
+})
+
+HubsTab:CreateSection("Movement Hubs")
+
+HubsTab:CreateButton({
+    Name        = "WalkSpeed GUI",
+    Description = "Standalone speed/jump GUI",
+    Callback    = function()
+        Rayfield:Notify({ Title = "glitched.exe", Content = "Loading WalkSpeed GUI...", Duration = 3, Image = 4483362458 })
+        SafeExec("https://raw.githubusercontent.com/RandomGamingDev/roblox-scripts/main/Speed%20GUI.lua", "WalkSpeed GUI")
+    end,
+})
 
 -- =====================
 -- SETTINGS TAB
@@ -554,7 +595,7 @@ Rayfield:LoadConfiguration()
 
 Rayfield:Notify({
     Title    = "glitched.exe",
-    Content  = "WE'RE IN, BITCHES!",
+    Content  = "Loaded successfully!",
     Duration = 4,
     Image    = 4483362458,
 })

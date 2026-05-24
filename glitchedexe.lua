@@ -1,418 +1,505 @@
--- glitched.exe
--- UI powered by LinoriaLib
+-- glitched.exe | WindUI Edition
 
-local repo = 'https://raw.githubusercontent.com/violin-suzutsuki/LinoriaLib/main/'
+local WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/main/source.lua"))()
 
-local Library = loadstring(game:HttpGet(repo .. 'Library.lua'))()
-local ThemeManager = loadstring(game:HttpGet(repo .. 'addons/ThemeManager.lua'))()
-local SaveManager = loadstring(game:HttpGet(repo .. 'addons/SaveManager.lua'))()
-
-local Window = Library:CreateWindow({
-    Title = 'glitched.exe',
-    Center = true,
-    AutoShow = true,
-})
-
-local Tabs = {
-    Main = Window:AddTab('Movement'),
-    Combat = Window:AddTab('Combat'),
-    Visual = Window:AddTab('Visuals'),
-    Settings = Window:AddTab('Settings'),
-}
-
-local Players = game:GetService('Players')
-local RunService = game:GetService('RunService')
-local UserInputService = game:GetService('UserInputService')
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
 
 local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
 
+-- =====================
 -- State
+-- =====================
+
+local State = {
+    Walkspeed = 16,
+    JumpPower = 50,
+    LoopWS = false,
+    LoopJP = false,
+    Fly = false,
+    Noclip = false,
+    Aimbot = false,
+    AntiAFK = false,
+    InfJump = false,
+    ESPEnabled = false,
+    TracersEnabled = false,
+    AimbotFOV = 150,
+    AimbotSmoothing = 0.1,
+    FlySpeed = 50,
+}
+
 local ESPObjects = {}
-local FlyEnabled = false
-local NoclipEnabled = false
-local AimbotEnabled = false
 local FlyBodyVelocity, FlyBodyGyro
+local InfJumpConn, AntiAFKConn, LoopWSConn, LoopJPConn
 
-local function GetCharacter()
-    return LocalPlayer.Character
-end
+-- =====================
+-- Helpers
+-- =====================
 
+local function GetCharacter() return LocalPlayer.Character end
 local function GetHumanoid()
-    local char = GetCharacter()
-    return char and char:FindFirstChildOfClass('Humanoid')
+    local c = GetCharacter()
+    return c and c:FindFirstChildOfClass("Humanoid")
+end
+local function GetRootPart()
+    local c = GetCharacter()
+    return c and c:FindFirstChild("HumanoidRootPart")
 end
 
-local function GetRootPart()
-    local char = GetCharacter()
-    return char and char:FindFirstChild('HumanoidRootPart')
-end
+-- =====================
+-- WindUI Window
+-- =====================
+
+local Window = WindUI:CreateWindow({
+    Title = "glitched.exe",
+    Icon = "zap",
+    Author = "glitched",
+    Folder = "glitched_exe",
+    Size = UDim2.fromOffset(580, 460),
+    Transparent = true,
+    Theme = "Dark",
+})
+
+local Tabs = {
+    Movement = Window:Tab({ Title = "Movement", Icon = "footprints" }),
+    Combat   = Window:Tab({ Title = "Combat",   Icon = "crosshair"  }),
+    Visuals  = Window:Tab({ Title = "Visuals",  Icon = "eye"        }),
+    Players  = Window:Tab({ Title = "Players",  Icon = "users"      }),
+    Settings = Window:Tab({ Title = "Settings", Icon = "settings"   }),
+}
 
 -- =====================
 -- MOVEMENT TAB
 -- =====================
 
-local MovementGroup = Tabs.Main:AddLeftGroupbox('Walk Speed')
+local MoveSec = Tabs.Movement:Section({ Title = "Speed & Jump" })
 
-local WalkspeedValue = 16
-
-MovementGroup:AddSlider('WalkspeedSlider', {
-    Text = 'Walk Speed',
-    Default = 16,
-    Min = 0,
-    Max = 500,
-    Rounding = 0,
-    Callback = function(Value)
-        WalkspeedValue = Value
-        local hum = GetHumanoid()
-        if hum then
-            hum.WalkSpeed = Value
-        end
-    end
+MoveSec:Slider({
+    Title = "Walk Speed",
+    Description = "Set player walk speed",
+    Default = 16, Min = 0, Max = 500, Decimals = 0,
+    Callback = function(v)
+        State.Walkspeed = v
+        local h = GetHumanoid()
+        if h then h.WalkSpeed = v end
+    end,
 })
 
--- Reapply walkspeed on respawn
-LocalPlayer.CharacterAdded:Connect(function(char)
-    local hum = char:WaitForChild('Humanoid')
-    hum.WalkSpeed = WalkspeedValue
-
-    -- Reapply noclip loop
-    if NoclipEnabled then
-        for _, part in pairs(char:GetDescendants()) do
-            if part:IsA('BasePart') then
-                part.CanCollide = false
-            end
+MoveSec:Slider({
+    Title = "Jump Power",
+    Description = "Set player jump height",
+    Default = 50, Min = 0, Max = 500, Decimals = 0,
+    Callback = function(v)
+        State.JumpPower = v
+        local h = GetHumanoid()
+        if h then
+            if h.UseJumpPower then h.JumpPower = v else h.JumpHeight = v end
         end
-    end
-end)
+    end,
+})
 
--- FLY
-local FlyGroup = Tabs.Main:AddLeftGroupbox('Fly')
+MoveSec:Toggle({
+    Title = "Loop Walk Speed",
+    Description = "Continuously reapply walk speed",
+    Default = false,
+    Callback = function(v)
+        State.LoopWS = v
+        if LoopWSConn then LoopWSConn:Disconnect() end
+        if v then
+            LoopWSConn = RunService.Heartbeat:Connect(function()
+                local h = GetHumanoid()
+                if h then h.WalkSpeed = State.Walkspeed end
+            end)
+        end
+    end,
+})
 
-local FLY_SPEED = 50
+MoveSec:Toggle({
+    Title = "Loop Jump Power",
+    Description = "Continuously reapply jump power",
+    Default = false,
+    Callback = function(v)
+        State.LoopJP = v
+        if LoopJPConn then LoopJPConn:Disconnect() end
+        if v then
+            LoopJPConn = RunService.Heartbeat:Connect(function()
+                local h = GetHumanoid()
+                if h then
+                    if h.UseJumpPower then h.JumpPower = State.JumpPower else h.JumpHeight = State.JumpPower end
+                end
+            end)
+        end
+    end,
+})
 
-FlyGroup:AddSlider('FlySpeedSlider', {
-    Text = 'Fly Speed',
-    Default = 50,
-    Min = 10,
-    Max = 300,
-    Rounding = 0,
-    Callback = function(v) FLY_SPEED = v end
+-- Inf Jump
+local JumpSec = Tabs.Movement:Section({ Title = "Inf Jump" })
+
+JumpSec:Toggle({
+    Title = "Infinite Jump",
+    Description = "Jump infinitely in the air",
+    Default = false,
+    Callback = function(v)
+        State.InfJump = v
+        if InfJumpConn then InfJumpConn:Disconnect() end
+        if v then
+            InfJumpConn = UserInputService.JumpRequest:Connect(function()
+                local h = GetHumanoid()
+                if h then h:ChangeState(Enum.HumanoidStateType.Jumping) end
+            end)
+        end
+    end,
+})
+
+-- Fly
+local FlySec = Tabs.Movement:Section({ Title = "Fly" })
+
+FlySec:Slider({
+    Title = "Fly Speed",
+    Default = 50, Min = 10, Max = 300, Decimals = 0,
+    Callback = function(v) State.FlySpeed = v end,
 })
 
 local function EnableFly()
     local root = GetRootPart()
     if not root then return end
-
-    FlyBodyVelocity = Instance.new('BodyVelocity')
+    FlyBodyVelocity = Instance.new("BodyVelocity")
     FlyBodyVelocity.Velocity = Vector3.zero
     FlyBodyVelocity.MaxForce = Vector3.new(1e5, 1e5, 1e5)
     FlyBodyVelocity.Parent = root
-
-    FlyBodyGyro = Instance.new('BodyGyro')
+    FlyBodyGyro = Instance.new("BodyGyro")
     FlyBodyGyro.MaxTorque = Vector3.new(1e5, 1e5, 1e5)
     FlyBodyGyro.P = 1e4
     FlyBodyGyro.Parent = root
-
-    RunService:BindToRenderStep('FlyStep', Enum.RenderPriority.Input.Value, function()
-        if not FlyEnabled then return end
-        local root2 = GetRootPart()
-        if not root2 then return end
-
+    RunService:BindToRenderStep("FlyStep", Enum.RenderPriority.Input.Value, function()
+        if not State.Fly then return end
+        local r = GetRootPart()
+        if not r then return end
         local cf = Camera.CFrame
         local dir = Vector3.zero
-
-        if UserInputService:IsKeyDown(Enum.KeyCode.W) then dir = dir + cf.LookVector end
-        if UserInputService:IsKeyDown(Enum.KeyCode.S) then dir = dir - cf.LookVector end
-        if UserInputService:IsKeyDown(Enum.KeyCode.A) then dir = dir - cf.RightVector end
-        if UserInputService:IsKeyDown(Enum.KeyCode.D) then dir = dir + cf.RightVector end
-        if UserInputService:IsKeyDown(Enum.KeyCode.Space) then dir = dir + Vector3.new(0,1,0) end
-        if UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) then dir = dir - Vector3.new(0,1,0) end
-
-        FlyBodyVelocity.Velocity = dir.Magnitude > 0 and dir.Unit * FLY_SPEED or Vector3.zero
+        if UserInputService:IsKeyDown(Enum.KeyCode.W) then dir += cf.LookVector end
+        if UserInputService:IsKeyDown(Enum.KeyCode.S) then dir -= cf.LookVector end
+        if UserInputService:IsKeyDown(Enum.KeyCode.A) then dir -= cf.RightVector end
+        if UserInputService:IsKeyDown(Enum.KeyCode.D) then dir += cf.RightVector end
+        if UserInputService:IsKeyDown(Enum.KeyCode.Space) then dir += Vector3.new(0,1,0) end
+        if UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) then dir -= Vector3.new(0,1,0) end
+        FlyBodyVelocity.Velocity = dir.Magnitude > 0 and dir.Unit * State.FlySpeed or Vector3.zero
         FlyBodyGyro.CFrame = cf
     end)
 end
 
 local function DisableFly()
-    RunService:UnbindFromRenderStep('FlyStep')
-    if FlyBodyVelocity then FlyBodyVelocity:Destroy() end
-    if FlyBodyGyro then FlyBodyGyro:Destroy() end
-    FlyBodyVelocity = nil
-    FlyBodyGyro = nil
+    RunService:UnbindFromRenderStep("FlyStep")
+    if FlyBodyVelocity then FlyBodyVelocity:Destroy() FlyBodyVelocity = nil end
+    if FlyBodyGyro then FlyBodyGyro:Destroy() FlyBodyGyro = nil end
 end
 
-FlyGroup:AddToggle('FlyToggle', {
-    Text = 'Enable Fly',
+FlySec:Toggle({
+    Title = "Enable Fly",
+    Description = "WASD to move, Space/Ctrl for up/down",
     Default = false,
-    Callback = function(Value)
-        FlyEnabled = Value
-        if Value then
-            EnableFly()
-        else
-            DisableFly()
-        end
-    end
+    Callback = function(v)
+        State.Fly = v
+        if v then EnableFly() else DisableFly() end
+    end,
 })
 
--- NOCLIP
-local NoclipGroup = Tabs.Main:AddRightGroupbox('Noclip')
+-- Noclip
+local NoclipSec = Tabs.Movement:Section({ Title = "Noclip" })
 
-NoclipGroup:AddToggle('NoclipToggle', {
-    Text = 'Enable Noclip',
+NoclipSec:Toggle({
+    Title = "Enable Noclip",
+    Description = "Disable collision with all parts",
     Default = false,
-    Callback = function(Value)
-        NoclipEnabled = Value
-    end
+    Callback = function(v) State.Noclip = v end,
 })
 
 RunService.Stepped:Connect(function()
-    if NoclipEnabled then
-        local char = GetCharacter()
-        if char then
-            for _, part in pairs(char:GetDescendants()) do
-                if part:IsA('BasePart') and part.CanCollide then
-                    part.CanCollide = false
+    if State.Noclip then
+        local c = GetCharacter()
+        if c then
+            for _, p in pairs(c:GetDescendants()) do
+                if p:IsA("BasePart") and p.CanCollide then
+                    p.CanCollide = false
                 end
             end
         end
     end
 end)
 
--- =====================
--- VISUALS TAB
--- =====================
+-- Anti-AFK
+local MiscSec = Tabs.Movement:Section({ Title = "Misc" })
 
-local ESPGroup = Tabs.Visual:AddLeftGroupbox('ESP')
-
-local ESPEnabled = false
-local TracersEnabled = false
-local ESP_COLOR = Color3.fromRGB(255, 50, 50)
-local TRACER_COLOR = Color3.fromRGB(255, 255, 0)
-
-local function CreateESPForPlayer(player)
-    if player == LocalPlayer then return end
-
-    local billboard = Instance.new('BillboardGui')
-    billboard.Name = 'ESP_' .. player.Name
-    billboard.AlwaysOnTop = true
-    billboard.Size = UDim2.new(0, 100, 0, 30)
-    billboard.StudsOffset = Vector3.new(0, 3, 0)
-
-    local nameLabel = Instance.new('TextLabel')
-    nameLabel.BackgroundTransparency = 1
-    nameLabel.Size = UDim2.new(1, 0, 1, 0)
-    nameLabel.TextColor3 = ESP_COLOR
-    nameLabel.TextStrokeTransparency = 0
-    nameLabel.Font = Enum.Font.GothamBold
-    nameLabel.TextSize = 14
-    nameLabel.Text = player.Name
-    nameLabel.Parent = billboard
-
-    local tracer = Drawing.new('Line')
-    tracer.Visible = false
-    tracer.Color = TRACER_COLOR
-    tracer.Thickness = 1
-    tracer.Transparency = 1
-
-    ESPObjects[player] = {
-        Billboard = billboard,
-        Tracer = tracer,
-        NameLabel = nameLabel,
-    }
-
-    local function Attach()
-        local char = player.Character or player.CharacterAdded:Wait()
-        local root = char:WaitForChild('HumanoidRootPart', 5)
-        if root and ESPObjects[player] then
-            billboard.Adornee = root
-            billboard.Parent = game:GetService('CoreGui')
-        end
-    end
-
-    task.spawn(Attach)
-
-    player.CharacterAdded:Connect(function()
-        task.spawn(Attach)
-    end)
-end
-
-local function RemoveESPForPlayer(player)
-    if ESPObjects[player] then
-        if ESPObjects[player].Billboard then
-            ESPObjects[player].Billboard:Destroy()
-        end
-        if ESPObjects[player].Tracer then
-            ESPObjects[player].Tracer:Remove()
-        end
-        ESPObjects[player] = nil
-    end
-end
-
-local function EnableESP()
-    for _, player in pairs(Players:GetPlayers()) do
-        CreateESPForPlayer(player)
-    end
-end
-
-local function DisableESP()
-    for _, player in pairs(Players:GetPlayers()) do
-        RemoveESPForPlayer(player)
-    end
-end
-
-ESPGroup:AddToggle('ESPToggle', {
-    Text = 'Enable ESP',
+MiscSec:Toggle({
+    Title = "Anti-AFK",
+    Description = "Prevent auto-kick for being idle",
     Default = false,
-    Callback = function(Value)
-        ESPEnabled = Value
-        if Value then EnableESP() else DisableESP() end
-    end
+    Callback = function(v)
+        State.AntiAFK = v
+        if AntiAFKConn then AntiAFKConn:Disconnect() end
+        if v then
+            AntiAFKConn = LocalPlayer.Idled:Connect(function()
+                -- Fire a fake VirtualUser input to reset idle timer
+                local VirtualUser = game:GetService("VirtualUser")
+                VirtualUser:CaptureController()
+                VirtualUser:ClickButton2(Vector2.new())
+            end)
+        end
+    end,
 })
 
-ESPGroup:AddToggle('TracerToggle', {
-    Text = 'Enable Tracers',
-    Default = false,
-    Callback = function(Value)
-        TracersEnabled = Value
-    end
-})
-
--- ESP/Tracer render loop
-RunService.RenderStepped:Connect(function()
-    for player, objs in pairs(ESPObjects) do
-        local char = player.Character
-        local root = char and char:FindFirstChild('HumanoidRootPart')
-        local hum = char and char:FindFirstChildOfClass('Humanoid')
-
-        if root and hum and hum.Health > 0 then
-            local screenPos, onScreen = Camera:WorldToViewportPoint(root.Position)
-
-            -- ESP Name
-            if objs.Billboard then
-                objs.Billboard.Enabled = ESPEnabled and onScreen
-                if objs.NameLabel then
-                    objs.NameLabel.Text = player.Name .. ' [' .. math.floor(hum.Health) .. ']'
-                    objs.NameLabel.TextColor3 = ESP_COLOR
-                end
-            end
-
-            -- Tracer
-            if objs.Tracer then
-                objs.Tracer.Visible = TracersEnabled and onScreen
-                if TracersEnabled and onScreen then
-                    local viewportSize = Camera.ViewportSize
-                    objs.Tracer.From = Vector2.new(viewportSize.X / 2, viewportSize.Y)
-                    objs.Tracer.To = Vector2.new(screenPos.X, screenPos.Y)
-                    objs.Tracer.Color = TRACER_COLOR
-                    objs.Tracer.Thickness = 1
-                    objs.Tracer.Transparency = 1
-                end
-            end
-        else
-            if objs.Billboard then objs.Billboard.Enabled = false end
-            if objs.Tracer then objs.Tracer.Visible = false end
-        end
-    end
-end)
-
-Players.PlayerAdded:Connect(function(player)
-    if ESPEnabled then CreateESPForPlayer(player) end
-end)
-
-Players.PlayerRemoving:Connect(function(player)
-    RemoveESPForPlayer(player)
+-- Reapply on respawn
+LocalPlayer.CharacterAdded:Connect(function(char)
+    local hum = char:WaitForChild("Humanoid")
+    task.wait(0.1)
+    hum.WalkSpeed = State.Walkspeed
+    if hum.UseJumpPower then hum.JumpPower = State.JumpPower else hum.JumpHeight = State.JumpPower end
 end)
 
 -- =====================
 -- COMBAT TAB
 -- =====================
 
-local AimbotGroup = Tabs.Combat:AddLeftGroupbox('Aimbot')
+local AimbotSec = Tabs.Combat:Section({ Title = "Aimbot" })
 
-local AIMBOT_SMOOTHING = 0.1
-local AIMBOT_FOV = 150
-local AimbotKey = Enum.UserInputType.MouseButton2
-
-AimbotGroup:AddSlider('AimbotFOV', {
-    Text = 'FOV Radius',
-    Default = 150,
-    Min = 10,
-    Max = 600,
-    Rounding = 0,
-    Callback = function(v) AIMBOT_FOV = v end
-})
-
-AimbotGroup:AddSlider('AimbotSmoothing', {
-    Text = 'Smoothing',
-    Default = 10,
-    Min = 1,
-    Max = 100,
-    Rounding = 0,
-    Callback = function(v) AIMBOT_SMOOTHING = v / 1000 end
-})
-
-AimbotGroup:AddToggle('AimbotToggle', {
-    Text = 'Enable Aimbot',
+AimbotSec:Toggle({
+    Title = "Enable Aimbot",
+    Description = "Hold RMB to lock onto nearest player",
     Default = false,
-    Callback = function(Value)
-        AimbotEnabled = Value
-    end
+    Callback = function(v) State.Aimbot = v end,
 })
 
-local function GetClosestPlayerToMouse()
-    local closestPlayer = nil
-    local closestDist = math.huge
-    local center = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
+AimbotSec:Slider({
+    Title = "FOV Radius",
+    Default = 150, Min = 10, Max = 700, Decimals = 0,
+    Callback = function(v) State.AimbotFOV = v end,
+})
 
-    for _, player in pairs(Players:GetPlayers()) do
-        if player == LocalPlayer then continue end
-        local char = player.Character
-        local root = char and char:FindFirstChild('HumanoidRootPart')
-        local hum = char and char:FindFirstChildOfClass('Humanoid')
+AimbotSec:Slider({
+    Title = "Smoothing",
+    Description = "Higher = slower lock",
+    Default = 10, Min = 1, Max = 100, Decimals = 0,
+    Callback = function(v) State.AimbotSmoothing = v / 1000 end,
+})
+
+local function GetClosestToCenter()
+    local closest, dist = nil, math.huge
+    local center = Camera.ViewportSize / 2
+    for _, p in pairs(Players:GetPlayers()) do
+        if p == LocalPlayer then continue end
+        local char = p.Character
+        local root = char and char:FindFirstChild("HumanoidRootPart")
+        local hum  = char and char:FindFirstChildOfClass("Humanoid")
         if not root or not hum or hum.Health <= 0 then continue end
-
-        local screenPos, onScreen = Camera:WorldToViewportPoint(root.Position)
-        if not onScreen then continue end
-
-        local dist = (Vector2.new(screenPos.X, screenPos.Y) - center).Magnitude
-        if dist < closestDist and dist <= AIMBOT_FOV then
-            closestDist = dist
-            closestPlayer = player
+        local sp, vis = Camera:WorldToViewportPoint(root.Position)
+        if not vis then continue end
+        local d = (Vector2.new(sp.X, sp.Y) - center).Magnitude
+        if d < dist and d <= State.AimbotFOV then
+            dist = d
+            closest = p
         end
     end
-
-    return closestPlayer
+    return closest
 end
 
 RunService.RenderStepped:Connect(function()
-    if not AimbotEnabled then return end
-    if not UserInputService:IsMouseButtonPressed(AimbotKey) then return end
-
-    local target = GetClosestPlayerToMouse()
+    if not State.Aimbot then return end
+    if not UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton2) then return end
+    local target = GetClosestToCenter()
     if not target then return end
-
-    local char = target.Character
-    local head = char and char:FindFirstChild('Head')
+    local head = target.Character and target.Character:FindFirstChild("Head")
     if not head then return end
+    Camera.CFrame = Camera.CFrame:Lerp(CFrame.new(Camera.CFrame.Position, head.Position), State.AimbotSmoothing)
+end)
 
-    local targetCF = CFrame.new(Camera.CFrame.Position, head.Position)
-    Camera.CFrame = Camera.CFrame:Lerp(targetCF, AIMBOT_SMOOTHING)
+-- =====================
+-- VISUALS TAB
+-- =====================
+
+local ESPSec = Tabs.Visuals:Section({ Title = "ESP" })
+
+local ESP_COLOR = Color3.fromRGB(255, 60, 60)
+local TRACER_COLOR = Color3.fromRGB(255, 220, 0)
+
+local function CreateESP(player)
+    if player == LocalPlayer or ESPObjects[player] then return end
+    local bb = Instance.new("BillboardGui")
+    bb.AlwaysOnTop = true
+    bb.Size = UDim2.new(0, 120, 0, 36)
+    bb.StudsOffset = Vector3.new(0, 3.5, 0)
+    local lbl = Instance.new("TextLabel", bb)
+    lbl.BackgroundTransparency = 1
+    lbl.Size = UDim2.new(1, 0, 1, 0)
+    lbl.TextColor3 = ESP_COLOR
+    lbl.TextStrokeTransparency = 0
+    lbl.Font = Enum.Font.GothamBold
+    lbl.TextSize = 13
+    lbl.Text = player.Name
+    local tracer = Drawing.new("Line")
+    tracer.Visible = false
+    tracer.Color = TRACER_COLOR
+    tracer.Thickness = 1
+    tracer.Transparency = 1
+    ESPObjects[player] = { BB = bb, Tracer = tracer, Label = lbl }
+    local function attach()
+        local char = player.Character or player.CharacterAdded:Wait()
+        local root = char:WaitForChild("HumanoidRootPart", 5)
+        if root and ESPObjects[player] then
+            bb.Adornee = root
+            bb.Parent = game:GetService("CoreGui")
+        end
+    end
+    task.spawn(attach)
+    player.CharacterAdded:Connect(function() task.spawn(attach) end)
+end
+
+local function RemoveESP(player)
+    if ESPObjects[player] then
+        if ESPObjects[player].BB then ESPObjects[player].BB:Destroy() end
+        if ESPObjects[player].Tracer then ESPObjects[player].Tracer:Remove() end
+        ESPObjects[player] = nil
+    end
+end
+
+ESPSec:Toggle({
+    Title = "Enable ESP",
+    Description = "Show player names and health",
+    Default = false,
+    Callback = function(v)
+        State.ESPEnabled = v
+        if v then
+            for _, p in pairs(Players:GetPlayers()) do CreateESP(p) end
+        else
+            for _, p in pairs(Players:GetPlayers()) do RemoveESP(p) end
+        end
+    end,
+})
+
+ESPSec:Toggle({
+    Title = "Enable Tracers",
+    Description = "Draw lines from screen bottom to players",
+    Default = false,
+    Callback = function(v) State.TracersEnabled = v end,
+})
+
+RunService.RenderStepped:Connect(function()
+    for player, objs in pairs(ESPObjects) do
+        local char = player.Character
+        local root = char and char:FindFirstChild("HumanoidRootPart")
+        local hum  = char and char:FindFirstChildOfClass("Humanoid")
+        if root and hum and hum.Health > 0 then
+            local sp, vis = Camera:WorldToViewportPoint(root.Position)
+            if objs.BB then
+                objs.BB.Enabled = State.ESPEnabled and vis
+                if objs.Label then
+                    objs.Label.Text = player.Name .. " [" .. math.floor(hum.Health) .. "HP]"
+                end
+            end
+            if objs.Tracer then
+                objs.Tracer.Visible = State.TracersEnabled and vis
+                if State.TracersEnabled and vis then
+                    local vs = Camera.ViewportSize
+                    objs.Tracer.From = Vector2.new(vs.X / 2, vs.Y)
+                    objs.Tracer.To   = Vector2.new(sp.X, sp.Y)
+                end
+            end
+        else
+            if objs.BB then objs.BB.Enabled = false end
+            if objs.Tracer then objs.Tracer.Visible = false end
+        end
+    end
+end)
+
+Players.PlayerAdded:Connect(function(p)
+    if State.ESPEnabled then CreateESP(p) end
+end)
+Players.PlayerRemoving:Connect(function(p) RemoveESP(p) end)
+
+-- =====================
+-- PLAYERS TAB (Teleport)
+-- =====================
+
+local TpSec = Tabs.Players:Section({ Title = "Teleport to Player" })
+
+local function GetPlayerNames()
+    local names = {}
+    for _, p in pairs(Players:GetPlayers()) do
+        if p ~= LocalPlayer then
+            table.insert(names, p.Name)
+        end
+    end
+    if #names == 0 then names = { "No players found" } end
+    return names
+end
+
+local PlayerDropdown
+
+PlayerDropdown = TpSec:Dropdown({
+    Title = "Select Player",
+    Description = "Choose a player to teleport to",
+    Values = GetPlayerNames(),
+    Default = 1,
+    Callback = function(_) end, -- selection stored internally
+})
+
+TpSec:Button({
+    Title = "Teleport",
+    Description = "Teleport to selected player",
+    Callback = function()
+        local selected = PlayerDropdown:GetValue()
+        if not selected or selected == "No players found" then return end
+        local target = Players:FindFirstChild(selected)
+        if not target then return end
+        local tChar = target.Character
+        local tRoot = tChar and tChar:FindFirstChild("HumanoidRootPart")
+        local myRoot = GetRootPart()
+        if tRoot and myRoot then
+            myRoot.CFrame = tRoot.CFrame + Vector3.new(0, 3, 0)
+        end
+    end,
+})
+
+TpSec:Button({
+    Title = "↻ Refresh Player List",
+    Description = "Update the list after players join or leave",
+    Callback = function()
+        PlayerDropdown:SetValues(GetPlayerNames())
+    end,
+})
+
+-- Auto-refresh on player join/leave
+Players.PlayerAdded:Connect(function()
+    PlayerDropdown:SetValues(GetPlayerNames())
+end)
+Players.PlayerRemoving:Connect(function()
+    task.wait(0.1)
+    PlayerDropdown:SetValues(GetPlayerNames())
 end)
 
 -- =====================
 -- SETTINGS TAB
 -- =====================
 
-ThemeManager:SetLibrary(Library)
-SaveManager:SetLibrary(Library)
+local ThemeSec = Tabs.Settings:Section({ Title = "Theme" })
 
-SaveManager:IgnoreThemeSettings()
-SaveManager:SetIgnoreIndexes({'WalkspeedSlider'})
-SaveManager:SetFolder('glitched_exe')
+ThemeSec:Dropdown({
+    Title = "UI Theme",
+    Values = { "Dark", "Light", "Darker" },
+    Default = 1,
+    Callback = function(v)
+        Window:SetTheme(v)
+    end,
+})
 
-ThemeManager:SetFolder('glitched_exe')
-ThemeManager:ApplyToTab(Tabs.Settings)
-SaveManager:BuildConfigSection(Tabs.Settings)
+Tabs.Settings:Section({ Title = "Info" }):Label({
+    Title = "glitched.exe — WindUI Edition",
+})
 
-Library:Notify('glitched.exe loaded!')
+WindUI:Notify({
+    Title = "glitched.exe",
+    Content = "Script loaded successfully!",
+    Duration = 4,
+})
